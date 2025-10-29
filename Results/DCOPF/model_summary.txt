@@ -1,0 +1,11 @@
+A JuMP Model
+├ solver: HiGHS
+├ objective_sense: MIN_SENSE
+│ └ objective_function_type: AffExpr
+├ num_variables: 7199
+├ num_constraints: 38055
+│ ├ AffExpr in MOI.EqualTo{Float64}: 6516
+│ ├ AffExpr in MOI.Interval{Float64}: 17141
+│ ├ VariableRef in MOI.GreaterThan{Float64}: 7199
+│ └ VariableRef in MOI.LessThan{Float64}: 7199
+└ Names registered in the model: none
