@@ -99,15 +99,6 @@ bus_gen_circ_dict, bus_gen_circ_dict_ON = Manage_Bus_Gen_Circ(DBUS, DGEN, DCIR)
 # Calculate the Susceptance Matrix
 B_matrix = Calculate_Matrix_B(DBUS, DCIR, nBUS, nCIR) # Susceptance matrix
 
-cd(joinpath(path_folder_results,"Susceptance_Matrix"))
-df_B_matrix = DataFrame(Matrix(B_matrix), :auto)        # Convert the susceptance matrix into a DataFrame to save it
-CSV.write("df_B_matrix.csv", df_B_matrix; delim=';')    # Save the susceptance matrix in a CSV file
-
-println("--------------------------------------------------------------------------------------------------------------------------------------")
-println("Susceptance matrix successfully saved in: ", joinpath(path_folder_results,"Susceptance_Matrix"))
-println("--------------------------------------------------------------------------------------------------------------------------------------")
-cd(current_path_folder)
-
 # ########################################################################################
 #                                 STARTS OPTIMIZATION PROCESS 
 
@@ -186,3 +177,4 @@ else
     JuMP.@warn "Optmization process failed. No feasible solution found."
 end
 println("--------------------------------------------------------------------------------------------------------------------------------------")
+
