@@ -279,9 +279,9 @@ function Save_Solution_Model(model::Model,
     from_bus     = [reverse_bus_mapping[b] for b in DCIR.from_bus]
     to_bus       = [reverse_bus_mapping[b] for b in DCIR.to_bus]
 
-    # Struct to save the results related to the buses
+    # DataFrame to save the results related to the buses
     RBUS = DataFrame(
-        bus  = bus_bus,                                            # Bus identifies
+        bus  = bus_bus,                                             # Bus identifier
         v    = V_optim,                                             # Voltage magnitude                            [p.u.]
         θ    = round.(rad2deg.(θ_optim),                 digits=3), # Voltage angle                                [deg]
         p    = round.((P_g_bus .* base_MVA) .- DBUS.p_d, digits=3), # Net Active power                             [MW]
@@ -294,7 +294,7 @@ function Save_Solution_Model(model::Model,
         q_sh = round.(zeros(Float64, length(V_optim)),   digits=3)  # Reactive power demanded by shunt suscpetance [MVAr]
     )
     
-    # Struct to save the results related to the circuits
+    # DataFrame to save the results related to the circuits
     RCIR = DataFrame(
         circ      = DCIR.circ,                                   # Circuit identifier
         from_bus  = from_bus,                                    # From bus identifier
@@ -311,7 +311,7 @@ function Save_Solution_Model(model::Model,
         loading   = circ_loading                                 # Circuit loading
     )    
 
-    # Struct to save the results related to the generators
+    # DataFrame to save the results related to the generators
     RGEN = DataFrame(
         id_gen    = DGEN.id,                                 # Generator ID
         id_bus    = gen_bus,                                 # Bus in which the generator is connected
@@ -323,7 +323,6 @@ function Save_Solution_Model(model::Model,
     )
 
     Save_ResultsTXT_DCOPF(path_folder_results, RBUS, nBUS, RGEN, nGEN, RCIR, nCIR, Float64(JuMP.value.(model.ext[:objective]))) # Save the results in a TXT file
-    Save_ResultsCSV_DCOPF(path_folder_results, RBUS, nBUS, RGEN, nGEN, RCIR, nCIR, Float64(JuMP.value.(model.ext[:objective]))) # Save the results in a CSV file
 
     cd(current_path_folder)
 
@@ -407,66 +406,6 @@ function Save_ResultsTXT_DCOPF(path_folder_results::String, RBUS::DataFrame, nBU
     close(io)
 
     println("DC-OPF results successfully saved as TXT files in: ", joinpath(path_folder_results, "DCOPF"))
-end
-
-# Save the reports of the power flow in CSV files
-function Save_ResultsCSV_DCOPF(path_folder_results::String, RBUS::DataFrame, nBUS::Int64, RGEN::DataFrame, nGEN::Int64, RCIR::DataFrame, nCIR::Int64, objective::Float64)
-    cd(joinpath(path_folder_results, "DCOPF\\CSV"))
-  
-    # Save Bus Report as CSV
-    df_buses = DataFrame(
-        BUS = RBUS.bus,
-        V_pu = round.(RBUS.v, digits = 2),
-        Theta_deg = round.(RBUS.θ, digits = 2),
-        P_MW = round.(RBUS.p, digits = 4),
-        Q_MVAr = round.(RBUS.q, digits = 4),
-        PG_MW = round.(RBUS.p_g, digits = 4),
-        QG_MVAr = round.(RBUS.q_g, digits = 4),
-        PD_MW = round.(RBUS.p_d, digits = 4),
-        QD_MVAr = round.(RBUS.q_d, digits = 4),
-        Psh_MW =  round.(RBUS.p_sh, digits = 4),
-        Qsh_MVAr =  round.(RBUS.q_sh, digits = 4)
-    )
-    CSV.write("buses_report.csv", df_buses; delim=';', writeheader=true)
-
-    # Save Generators Report as CSV
-    df_generators = DataFrame(
-        ID = RGEN.id_gen,
-        BUS = RGEN.id_bus,
-        P_MW = round.(RGEN.p_g, digits = 4),
-        Q_MVAr = round.(RGEN.q_g, digits = 4),
-        S_MVA = round.(RGEN.s_g, digits = 4),
-        Loading_P = round.(RGEN.loading_p, digits = 4),
-        Loading_Q = round.(RGEN.loading_q, digits = 4)
-    )
-    CSV.write("generators_report.csv", df_generators; delim=';', writeheader=true)
-
-    # Save Circuit Report as CSV
-    df_circuits = DataFrame(
-        ID_CIRC = RCIR.circ,
-        FROM_BUS = RCIR.from_bus,
-        TO_BUS = RCIR.to_bus,
-        Pik_MW = round.(RCIR.p_ik, digits = 4),
-        Qik_MVAr = round.(RCIR.q_ik, digits = 4),
-        Sik_MVA = round.(RCIR.s_ik, digits = 4),
-        Pki_MW = round.(RCIR.p_ki, digits = 4),
-        Qki_MVAr = round.(RCIR.q_ki, digits = 4),
-        Ski_MVA = round.(RCIR.s_ki, digits = 4),
-        Cap_MVA = round.(RCIR.s_cap, digits = 4),
-        Loading = round.(RCIR.loading, digits = 4),
-        Ploss_MW = round.(RCIR.p_losses, digits = 4),
-        Qloss_MVAr = round.(RCIR.q_losses, digits = 4)
-    )
-    CSV.write("circuits_report.csv", df_circuits; delim=';', writeheader=true)
-
-    # Save Optimization Report as CSV
-    df_optimization = DataFrame(
-        Metric = ["Total Cost (Euros)"],
-        Value = [round(objective, digits=2)]
-    )
-    CSV.write("optimization_report.csv", df_optimization; delim=';', writeheader=true)
-
-    println("DC-OPF results successfully saved as CSV files in: ", joinpath(path_folder_results, "DCOPF\\CSV"))
 end
 
 # ===================================================================================
@@ -556,3 +495,4 @@ function Save_Duals_DCOPF_Model(model::Model,
     cd(current_path_folder)
 
 end
+
