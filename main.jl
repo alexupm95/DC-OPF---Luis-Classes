@@ -53,7 +53,7 @@ include("AF_MANAGEMENT.jl")             # Auxiliar function that calculates DC p
 6515bus
 =#
 
-case        = "6515bus"        # Case under study (folder name)
+case        = "3bus"        # Case under study (folder name)
 load_factor = 1.0           # Coefficient factor that can be used to scale the power demanded by loads
 base_MVA    = 100.0         # Base Power [MVA]
 optimizer = HiGHS.Optimizer # ¿Gurobi.Optimizer o HiGHS.Optimizer?
