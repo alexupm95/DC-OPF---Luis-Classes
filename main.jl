@@ -43,17 +43,9 @@ include("AF_MANAGEMENT.jl")             # Auxiliar function that calculates DC p
 3bus
 9bus
 24bus
-30bus
-39bus
-118bus
-300bus
-1888bus
-2848bus
-3970bus
-6515bus
 =#
 
-case        = "24bus"        # Case under study (folder name)
+case        = "3bus"        # Case under study (folder name)
 load_factor = 1.0           # Coefficient factor that can be used to scale the power demanded by loads
 base_MVA    = 100.0         # Base Power [MVA]
 optimizer = HiGHS.Optimizer # ¿Gurobi.Optimizer o HiGHS.Optimizer?
@@ -177,4 +169,5 @@ else
     JuMP.@warn "Optmization process failed. No feasible solution found."
 end
 println("--------------------------------------------------------------------------------------------------------------------------------------")
+
 
