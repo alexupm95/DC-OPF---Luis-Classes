@@ -134,9 +134,14 @@ function Read_Input_Data(folder_path::String)
     Core.include(mod, joinpath(folder_path, "line_data.jl"))
     Base.eval(mod, :(using DataFrames))
 
-    bus_df = DataFrame(Base.invokelatest(mod.bus_data), :auto)
-    gen_df = DataFrame(Base.invokelatest(mod.gen_data), :auto)
-    branch_df = DataFrame(Base.invokelatest(mod.branch_data), :auto)
+    # bus_df = DataFrame(Base.invokelatest(mod.bus_data), :auto)
+    # gen_df = DataFrame(Base.invokelatest(mod.gen_data), :auto)
+    # branch_df = DataFrame(Base.invokelatest(mod.branch_data), :auto)
+        
+    # Retrieve functions by symbol, then invoke safely
+    bus_df = DataFrame(Base.invokelatest(() -> getfield(mod, :bus_data)()), :auto)
+    gen_df = DataFrame(Base.invokelatest(() -> getfield(mod, :gen_data)()), :auto)
+    branch_df = DataFrame(Base.invokelatest(() -> getfield(mod, :branch_data)()), :auto)
     # ===========================================================
 
     DBUS = read_bus_data(bus_df)             # Generate the DataFrame with Buses data
@@ -193,3 +198,4 @@ function Reverse_Buses_Labels(DBUS::DataFrame, DGEN::DataFrame, DCIR::DataFrame,
 
     return DBUS, DGEN, DCIR
 end
+
