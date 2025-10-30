@@ -41,6 +41,7 @@ include("AF_MANAGEMENT.jl")             # Auxiliar function that calculates DC p
 ----------------------------------------------
 ** Select a system from the options below: **
 3bus
+6bus
 9bus
 24bus
 =#
@@ -169,5 +170,6 @@ else
     JuMP.@warn "Optmization process failed. No feasible solution found."
 end
 println("--------------------------------------------------------------------------------------------------------------------------------------")
+
 
 
