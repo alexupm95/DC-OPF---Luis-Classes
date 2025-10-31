@@ -8,8 +8,10 @@ function Export_DCOPF_Model(model::Model,
     P_g::OrderedDict{Int64, VariableRef},
     eq_const_angle_sw::ConstraintRef, 
     eq_const_p_balance::OrderedDict{Int64, ConstraintRef}, 
-    ineq_const_p_ik::OrderedDict{Int64, ConstraintRef}, 
-    ineq_const_diff_ang::OrderedDict{Int64, ConstraintRef},
+    ineq_const_p_ik_lb::OrderedDict{Int64, ConstraintRef}, 
+    ineq_const_p_ik_ub::OrderedDict{Int64, ConstraintRef}, 
+    ineq_const_diff_ang_lb::OrderedDict{Int64, ConstraintRef},
+    ineq_const_diff_ang_ub::OrderedDict{Int64, ConstraintRef},
     current_path_folder::String, 
     path_folder_results::String
     )
@@ -69,18 +71,34 @@ function Export_DCOPF_Model(model::Model,
         # ----------------------
         # Inequality constraint
         # ----------------------
-        println(io, "=========================================================")
-        println(io, "Inequality Constraints: Power Transfer Limits of Branches")
-        println(io, "=========================================================")
-        for (i, info) in ineq_const_p_ik
+        println(io, "=======================================================================")
+        println(io, "Inequality Constraints: Power Transfer Limits of Branches (Lower Bound)")
+        println(io, "=======================================================================")
+        for (i, info) in ineq_const_p_ik_lb
             println(io, "$i: ", info)
         end
         println(io, "\n")
 
-        println(io, "===============================================================")
-        println(io, "Inequality Constraints: Voltage Angle Differences between Buses")
-        println(io, "===============================================================")
-        for (i, info) in ineq_const_diff_ang
+        println(io, "=======================================================================")
+        println(io, "Inequality Constraints: Power Transfer Limits of Branches (Upper Bound)")
+        println(io, "=======================================================================")
+        for (i, info) in ineq_const_p_ik_ub
+            println(io, "$i: ", info)
+        end
+        println(io, "\n")
+
+        println(io, "=============================================================================")
+        println(io, "Inequality Constraints: Voltage Angle Differences between Buses (Lower Bound)")
+        println(io, "=============================================================================")
+        for (i, info) in ineq_const_diff_ang_lb
+            println(io, "$i: ", info)
+        end
+        println(io, "\n")
+
+        println(io, "=============================================================================")
+        println(io, "Inequality Constraints: Voltage Angle Differences between Buses (Upper Bound)")
+        println(io, "=============================================================================")
+        for (i, info) in ineq_const_diff_ang_ub
             println(io, "$i: ", info)
         end
         println(io, "\n")
@@ -417,8 +435,10 @@ function Save_Duals_DCOPF_Model(model::Model,
     P_g::OrderedDict{Int, VariableRef}, 
     eq_const_angle_sw::ConstraintRef, 
     eq_const_p_balance::OrderedDict{Int64, ConstraintRef}, 
-    ineq_const_p_ik::OrderedDict{Int64, ConstraintRef}, 
-    ineq_const_diff_ang::OrderedDict{Int64, ConstraintRef},
+    ineq_const_p_ik_lb::OrderedDict{Int64, ConstraintRef}, 
+    ineq_const_p_ik_ub::OrderedDict{Int64, ConstraintRef}, 
+    ineq_const_diff_ang_lb::OrderedDict{Int64, ConstraintRef},
+    ineq_const_diff_ang_ub::OrderedDict{Int64, ConstraintRef},
     base_MVA::Float64,
     current_path_folder::String,
     path_folder_results::String
@@ -428,40 +448,48 @@ function Save_Duals_DCOPF_Model(model::Model,
 
     # -------------------------------------------------------------------------------------------------
     # Dual related to the equality constraint of angle at the swing bus
-    dual_θ_SW = JuMP.dual.(eq_const_angle_sw) 
+    dual_θ_SW = abs.(JuMP.dual.(eq_const_angle_sw))
 
     # -------------------------------------------------------------------------------------------------
     # Dual related to the equality constraint active power balance
-    dual_P_balance = -1.0 .* [JuMP.dual(info) for (i, info) in eq_const_p_balance] ./ base_MVA
+    dual_P_balance = [JuMP.dual(info) for (i, info) in eq_const_p_balance] ./ base_MVA
 
     # -------------------------------------------------------------------------------------------------
-    # Dual related to the inequality constraint power transfer limit for branches
-    dual_p_ik = -1.0 .* [JuMP.dual(info) for (i, info) in ineq_const_p_ik] ./ base_MVA
+    # Dual related to the inequality constraint power transfer limit for branches (lower bound)
+    dual_p_ik_lb = abs.([JuMP.dual(info) for (i, info) in ineq_const_p_ik_lb] ./ base_MVA)
 
     # -------------------------------------------------------------------------------------------------
-    # Dual related to the inequality constraint voltage angle differences between buses
-    dual_diff_ang = [JuMP.dual(info) for (i, info) in ineq_const_diff_ang]
+    # Dual related to the inequality constraint power transfer limit for branches (upper bound)
+    dual_p_ik_ub = abs.([JuMP.dual(info) for (i, info) in ineq_const_p_ik_ub] ./ base_MVA)
+
+    # -------------------------------------------------------------------------------------------------
+    # Dual related to the inequality constraint voltage angle differences between buses (lower bound)
+    dual_diff_ang_lb = abs.([JuMP.dual(info) for (i, info) in ineq_const_diff_ang_lb])
+
+    # -------------------------------------------------------------------------------------------------
+    # Dual related to the inequality constraint voltage angle differences between buses (upper bound)
+    dual_diff_ang_ub = abs.([JuMP.dual(info) for (i, info) in ineq_const_diff_ang_ub])
 
     # -------------------------------------------------------------------------------------------------
     # Dual of the LOWER bound of the angle of each bus
-    dual_LB_θ = [JuMP.dual(LowerBoundRef(info)) for (i, info) in θ]
+    dual_LB_θ = abs.([JuMP.dual(LowerBoundRef(info)) for (i, info) in θ])
 
     # Dual of the UPPER bound of the angle of each bus
-    dual_UB_θ = [JuMP.dual(UpperBoundRef(info)) for (i, info) in θ]
+    dual_UB_θ = abs.([JuMP.dual(UpperBoundRef(info)) for (i, info) in θ])
 
     # -------------------------------------------------------------------------------------------------
     # Dual of the LOWER bound of the active power of each generator
-    dual_LB_Pg = [JuMP.dual(LowerBoundRef(info)) for (i, info) in P_g] ./ base_MVA
+    dual_LB_Pg = abs.([JuMP.dual(LowerBoundRef(info)) for (i, info) in P_g] ./ base_MVA)
 
     # Dual of the UPPER bound of the active power of each generator
-    dual_UB_Pg = [JuMP.dual(UpperBoundRef(info)) for (i, info) in P_g] ./ base_MVA
+    dual_UB_Pg = abs.([JuMP.dual(UpperBoundRef(info)) for (i, info) in P_g] ./ base_MVA)
 
     # ========== WRITE TO TXT FILE ==========
     open("DCOPF_duals.txt", "w") do io
         function write_dual_power(io, name, vec)
-            println(io, "======================================")
+            println(io, "==============================================================================")
             println(io, " $name:")
-            println(io, "======================================")
+            println(io, "==============================================================================")
             for (i, val) in enumerate(vec)
                 println(io, "[$i] =\t €/MW $val")
             end
@@ -469,24 +497,26 @@ function Save_Duals_DCOPF_Model(model::Model,
         end
 
         function write_dual_others(io, name, vec)
-            println(io, "============================================")
+            println(io, "====================================================================================")
             println(io, " $name:")
-            println(io, "============================================")
+            println(io, "====================================================================================")
             for (i, val) in enumerate(vec)
                 println(io, "[$i] =\t $val")
             end
             println(io)  # empty line between sections
         end
 
-        write_dual_others(io, "Dual Angle Swing Bus",     dual_θ_SW)
-        write_dual_power(io, "Dual Power Balance", dual_P_balance)
-        write_dual_power(io, "Dual Power Congestion", dual_p_ik)
-        write_dual_others(io, "Dual Angular Difference", dual_diff_ang)
+        write_dual_others(io, "Dual Eq. Constraint -> Angle Swing Bus",     dual_θ_SW)
+        write_dual_power(io, "Dual Eq. Constraint -> Power Balance", dual_P_balance)
+        write_dual_power(io, "Dual Ineq. Constraint -> Power Congestion (Lower Bound = TO bus - FROM bus)", dual_p_ik_lb)
+        write_dual_power(io, "Dual Ineq. Constraint -> Power Congestion (Upper Bound = FROM bus - TO bus)", dual_p_ik_ub)
+        write_dual_others(io, "Dual Ineq. Constraint -> Angular Difference (Lower Bound = TO bus - FROM bus)", dual_diff_ang_lb)
+        write_dual_others(io, "Dual Ineq. Constraint -> Angular Difference (Upper Bound = FROM bus - TO bus)", dual_diff_ang_ub)
 
-        write_dual_others(io,  "Dual Lower Bound θ", dual_LB_θ)
-        write_dual_others(io,  "Dual Upper Bound θ", dual_UB_θ)
-        write_dual_power(io,  "Dual Lower Bound Pg", dual_LB_Pg)
-        write_dual_power(io,  "Dual Upper Bound Pg", dual_UB_Pg)
+        write_dual_others(io,  "Dual Ineq. Constraint -> Variable θ (Lower Bound)", dual_LB_θ)
+        write_dual_others(io,  "Dual Ineq. Constraint -> Variable θ (Upper Bound)", dual_UB_θ)
+        write_dual_power(io,  "Dual Ineq. Constraint -> Variable Pg (Lower Bound)", dual_LB_Pg)
+        write_dual_power(io,  "Dual Ineq. Constraint -> Variable Pg (Upper Bound)", dual_UB_Pg)
 
     end
 
@@ -495,4 +525,3 @@ function Save_Duals_DCOPF_Model(model::Model,
     cd(current_path_folder)
 
 end
-

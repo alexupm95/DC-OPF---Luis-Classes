@@ -53,7 +53,7 @@ include("AF_MANAGEMENT.jl")             # Auxiliar function that calculates DC p
 6515bus
 =#
 
-case        = "24bus"        # Case under study (folder name)
+case        = "9bus"        # Case under study (folder name)
 load_factor = 1.0           # Coefficient factor that can be used to scale the power demanded by loads
 base_MVA    = 100.0         # Base Power [MVA]
 optimizer = HiGHS.Optimizer # ¿Gurobi.Optimizer o HiGHS.Optimizer?
@@ -123,8 +123,8 @@ end
 #------------------------------
 time_to_build_model = time() # Start the timer to build the Optimization Model
 
-model, V, θ, P_g, eq_const_angle_sw, eq_const_p_balance, ineq_const_p_ik, 
-ineq_const_diff_ang = Make_DCOPF_Model!(model, B_matrix, DBUS, DGEN, DCIR, bus_gen_circ_dict_ON, base_MVA, nBUS, nGEN, nCIR)
+model, V, θ, P_g, eq_const_angle_sw, eq_const_p_balance, ineq_const_p_ik_lb, ineq_const_p_ik_ub, ineq_const_diff_ang_lb, 
+ineq_const_diff_ang_ub = Make_DCOPF_Model!(model, B_matrix, DBUS, DGEN, DCIR, bus_gen_circ_dict_ON, base_MVA, nBUS, nGEN, nCIR)
 
 time_to_build_model = time() - time_to_build_model # End the timer to build the Optimization Model
 println("\nTime to build the model: $time_to_build_model sec\n")
@@ -135,8 +135,8 @@ println("\nTime to build the model: $time_to_build_model sec\n")
 #                         SAVE MODEL SUMMARY AND DETAILS
 #-------------------------------------------------------------------------------------
 println("--------------------------------------------------------------------------------------------------------------------------------------")
-Export_DCOPF_Model(model, θ, P_g, eq_const_angle_sw, eq_const_p_balance, ineq_const_p_ik, 
-ineq_const_diff_ang, current_path_folder, path_folder_results)
+Export_DCOPF_Model(model, θ, P_g, eq_const_angle_sw, eq_const_p_balance, ineq_const_p_ik_lb, ineq_const_p_ik_ub, 
+ineq_const_diff_ang_lb, ineq_const_diff_ang_ub, current_path_folder, path_folder_results)
 
 println("--------------------------------------------------------------------------------------------------------------------------------------")
 
@@ -155,23 +155,23 @@ println("-----------------------------------------------------------------------
 #                               ENDS OPTIMIZATION PROCESS 
 # ########################################################################################
 
-RBUS::Union{Nothing, DataFrame} = nothing
-RGEN::Union{Nothing, DataFrame} = nothing
-RCIR::Union{Nothing, DataFrame} = nothing
+RBUS::Union{Nothing, DataFrame} = nothing # DataFrame with results for the buses
+RGEN::Union{Nothing, DataFrame} = nothing # DataFrame with results for the generators
+RCIR::Union{Nothing, DataFrame} = nothing # DataFrame with results for the branches
 
-if status_model == OPTIMAL || status_model == LOCALLY_SOLVED || status_model == ITERATION_LIMIT
+if status_model == OPTIMAL || status_model == LOCALLY_SOLVED || status_model == ITERATION_LIMIT # Check the final status of the model after optmization
     #-------------------------------------------------------------------------------------
-    #                             SAVE RESULTS 
+    #                                SAVE RESULTS 
     #-------------------------------------------------------------------------------------
     RBUS, RGEN, RCIR = Save_Solution_Model(model, V, θ, P_g, bus_gen_circ_dict_ON, 
     DBUS, DGEN, DCIR, base_MVA, nBUS, nGEN, nCIR, bus_mapping, reverse_bus_mapping, 
     current_path_folder, path_folder_results)
 
     #-------------------------------------------------------------------------------------
-    #                             SAVE DUALS 
+    #                               SAVE DUAL VARIABLES
     #-------------------------------------------------------------------------------------
-    Save_Duals_DCOPF_Model(model, θ, P_g, eq_const_angle_sw, eq_const_p_balance, 
-    ineq_const_p_ik, ineq_const_diff_ang, base_MVA, current_path_folder, path_folder_results)
+    Save_Duals_DCOPF_Model(model, θ, P_g, eq_const_angle_sw, eq_const_p_balance, ineq_const_p_ik_lb, ineq_const_p_ik_ub, 
+    ineq_const_diff_ang_lb, ineq_const_diff_ang_ub, base_MVA, current_path_folder, path_folder_results)
 
 else
     JuMP.@warn "Optmization process failed. No feasible solution found."

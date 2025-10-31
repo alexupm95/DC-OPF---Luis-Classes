@@ -1,4 +1,4 @@
-# Function to build the AC OPF model
+# Function to build the DC OPF model
 function Make_DCOPF_Model!(model::Model, 
     B::SparseMatrixCSC,
     DBUS::DataFrame, 
@@ -152,16 +152,17 @@ function Make_DCOPF_Model!(model::Model,
         Pg_sum = isempty(Pg_terms) ? 0.0 : sum(Pg_terms) # Sum P_g terms; zero otherwise
 
         if g_sh[bus] == 0.0 # Check if the bus has shunt conductance connected to it 
-            eq_const_p_balance[bus] = @constraint(model, sum(terms_p) == Pg_sum - P_d[bus])
+            eq_const_p_balance[bus] = @constraint(model, Pg_sum - P_d[bus] - sum(terms_p) == 0.0)
         else
-            eq_const_p_balance[bus] = @constraint(model, sum(terms_p) == Pg_sum - P_d[bus] - g_sh[bus])
+            eq_const_p_balance[bus] = @constraint(model, Pg_sum - P_d[bus] - g_sh[bus] - sum(terms_p) == 0.0)
         end
     end
 
     # ****************************************************************
     # Inequality Constraints -> Power Transfer Limits in the Branches
     # ****************************************************************
-    ineq_const_p_ik = OrderedDict{Int, JuMP.ConstraintRef}() # Dict to save inequality constraints of power transfer limits in the branches
+    ineq_const_p_ik_lb = OrderedDict{Int, JuMP.ConstraintRef}() # Dict to save inequality constraints of power transfer limits in the branches (lower bound)
+    ineq_const_p_ik_ub = OrderedDict{Int, JuMP.ConstraintRef}() # Dict to save inequality constraints of power transfer limits in the branches (upper bound)
 
     # Loop in all branches
     for branch = 1:nCIR
@@ -172,7 +173,8 @@ function Make_DCOPF_Model!(model::Model,
             b = 1 / (DCIR.l_reac[branch]) # Branch series susceptance                   
 
             # Limit of the power flow from f_bus to t_bus
-            ineq_const_p_ik[branch] = JuMP.@constraint(model, get(lower_bounds_branch, branch, -Inf) <= b * (θ[f_bus] - θ[t_bus]) <= get(upper_bounds_branch, branch, Inf))
+            ineq_const_p_ik_lb[branch] = JuMP.@constraint(model, get(lower_bounds_branch, branch, -Inf) - (b * (θ[f_bus] - θ[t_bus])) <= 0.0)
+            ineq_const_p_ik_ub[branch] = JuMP.@constraint(model, (b * (θ[f_bus] - θ[t_bus])) - get(upper_bounds_branch, branch, Inf) <= 0.0)
         end
     end
 
@@ -180,7 +182,8 @@ function Make_DCOPF_Model!(model::Model,
     # Inequality Constraint -> Voltage Angle Difference Between Adjacent Buses
     # ************************************************************************
     pair_circ_map, sorted_pair_info = Get_Limits_Angular_Differences(DCIR, nCIR)
-    ineq_const_diff_ang  = OrderedDict{Int, JuMP.ConstraintRef}() # Vector to save inequality constraints of angle difference between adjacent buses
+    ineq_const_diff_ang_lb  = OrderedDict{Int, JuMP.ConstraintRef}() # Vector to save inequality constraints of angle difference between adjacent buses (lower bound)
+    ineq_const_diff_ang_ub  = OrderedDict{Int, JuMP.ConstraintRef}() # Vector to save inequality constraints of angle difference between adjacent buses (upper bound)
 
     for (pair, pair_data) in sorted_pair_info
         f_bus, t_bus = pair           # Bus from and bus to
@@ -191,26 +194,30 @@ function Make_DCOPF_Model!(model::Model,
 
         
         if min_ang >= -30 && max_ang <= 30 
-            ineq_const_diff_ang[circ_id] = JuMP.@constraint(model, deg2rad(min_ang) <= (θ[f_bus] - θ[t_bus]) <= deg2rad(max_ang))
+            ineq_const_diff_ang_lb[circ_id] = JuMP.@constraint(model, deg2rad(min_ang) - (θ[f_bus] - θ[t_bus]) <= 0.0)
+            ineq_const_diff_ang_ub[circ_id] = JuMP.@constraint(model, (θ[f_bus] - θ[t_bus]) - deg2rad(max_ang) <= 0.0)
 
         elseif min_ang < -30 && max_ang <= 30
             println("Correcting angle constraints between adjacent buses ($f_bus, $t_bus): setting ang_min to -30°.")
-            ineq_const_diff_ang[circ_id] = JuMP.@constraint(model, deg2rad(-30) <= (θ[f_bus] - θ[t_bus]) <= deg2rad(max_ang))
+            ineq_const_diff_ang_lb[circ_id] = JuMP.@constraint(model, deg2rad(-30) - (θ[f_bus] - θ[t_bus]) <= 0.0)
+            ineq_const_diff_ang_ub[circ_id] = JuMP.@constraint(model, (θ[f_bus] - θ[t_bus]) - deg2rad(max_ang) <= 0.0)
 
         elseif min_ang >= -30 && max_ang > 30
             println("Correcting angle constraints between adjacent buses ($f_bus, $t_bus): setting ang_max to +30°.")
-            ineq_const_diff_ang[circ_id] = JuMP.@constraint(model, deg2rad(min_ang) <= (θ[f_bus] - θ[t_bus]) <= deg2rad(30))
+            ineq_const_diff_ang_lb[circ_id] = JuMP.@constraint(model, deg2rad(min_ang) - (θ[f_bus] - θ[t_bus]) <= 0.0)
+            ineq_const_diff_ang_ub[circ_id] = JuMP.@constraint(model, (θ[f_bus] - θ[t_bus]) - deg2rad(30) <= 0.0)
 
         else # min_ang < -30 && max_ang > 30
             println("Correcting angle constraints between adjacent buses ($f_bus, $t_bus): setting ang_min to -30° and ang_max to +30°.")
-            ineq_const_diff_ang[circ_id] = JuMP.@constraint(model, deg2rad(-30) <= (θ[f_bus] - θ[t_bus]) <= deg2rad(30))
+            ineq_const_diff_ang_lb[circ_id] = JuMP.@constraint(model, deg2rad(-30) - (θ[f_bus] - θ[t_bus]) <= 0.0)
+            ineq_const_diff_ang_ub[circ_id] = JuMP.@constraint(model, (θ[f_bus] - θ[t_bus]) - deg2rad(30) <= 0.0)
         end
     end
 
     # =============================================================
     # Return model, variables and constraints to the main function
     # =============================================================
-    return model, V, θ, P_g, eq_const_angle_sw, eq_const_p_balance, ineq_const_p_ik, ineq_const_diff_ang # Return the model to the main function
+    return model, V, θ, P_g, eq_const_angle_sw, eq_const_p_balance, ineq_const_p_ik_lb, ineq_const_p_ik_ub, ineq_const_diff_ang_lb, ineq_const_diff_ang_ub # Return the model to the main function
 end
 
 # *****************************************************************************
