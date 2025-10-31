@@ -1,13 +1,15 @@
-# Function used to Read the Input data from the input files and store them into DataFrames
+# Function used to Read the Input data from the CSV files and store them into DataFrames
 function Read_Input_Data(folder_path::String)
 
-    # =======================================================================================================
-    # If some modification is done in the name of the variables in the input files, it must be modified here
-    # =======================================================================================================
+    # ====================================================================================================
+    # If some modification is done in the name of the variables in the CSV files, it must be modified here
+    # ==================================================================================================== 
 
     # Function to read buses data and store in DataFrame
-    function read_bus_data(df_bus)
-
+    function read_bus_data()
+        df = CSV.read("bus_data.csv", DataFrame; delim=';')  # Read CSV file
+        
+        df_bus = deepcopy(df)
         rename!(df_bus, Dict(
             names(df_bus)[1] => :bus,       # Bus number
             names(df_bus)[2] => :type,      # Bus type: (3 = SW), (2 = PV) or (1 = PQ) 
@@ -42,11 +44,12 @@ function Read_Input_Data(folder_path::String)
     end
 
     # Function to read generators data and store in DataFrame
-    function read_gen_data(df_gen)
-        num_gen = length(df_gen.x1)
+    function read_gen_data()
+        df = CSV.read("generators_data.csv", DataFrame; delim=';') # Read CSV file
+        num_gen = length(df.bus)
         id = collect(1:num_gen)
 
-        df_gen = hcat(DataFrame(id = id), df_gen; makeunique=true)
+        df_gen = hcat(DataFrame(id = id), df; makeunique=true)
 
         rename!(df_gen, Dict(
             names(df_gen)[2] => :bus,        # Bus number
@@ -83,11 +86,12 @@ function Read_Input_Data(folder_path::String)
     end
 
     # Function to read circuits data and store in DataFrame
-    function read_circuit_data(df_cir)
-        num_circ = length(df_cir.x1)
+    function read_circuit_data()
+        df = CSV.read("line_data.csv", DataFrame; delim=';')
+        num_circ = length(df.fbus)
         id = collect(1:num_circ)
 
-        df_cir = hcat(DataFrame(circ = id), df_cir; makeunique=true)
+        df_cir = hcat(DataFrame(circ = id), df; makeunique=true)
 
         rename!(df_cir, Dict(
             names(df_cir)[2] => :from_bus,  # "From" bus  
@@ -125,28 +129,9 @@ function Read_Input_Data(folder_path::String)
 
     cd(folder_path) # Load the folder were the input data files are stored
 
-    # ===========================================================
-    # Create a temporary Module 
-    # Include the input data files
-    mod = Module()
-    Core.include(mod, joinpath(folder_path, "bus_data.jl"))
-    Core.include(mod, joinpath(folder_path, "generators_data.jl"))
-    Core.include(mod, joinpath(folder_path, "line_data.jl"))
-    Base.eval(mod, :(using DataFrames))
-
-    # bus_df = DataFrame(Base.invokelatest(mod.bus_data), :auto)
-    # gen_df = DataFrame(Base.invokelatest(mod.gen_data), :auto)
-    # branch_df = DataFrame(Base.invokelatest(mod.branch_data), :auto)
-        
-    # Retrieve functions by symbol, then invoke safely
-    bus_df = DataFrame(Base.invokelatest(() -> getfield(mod, :bus_data)()), :auto)
-    gen_df = DataFrame(Base.invokelatest(() -> getfield(mod, :gen_data)()), :auto)
-    branch_df = DataFrame(Base.invokelatest(() -> getfield(mod, :branch_data)()), :auto)
-    # ===========================================================
-
-    DBUS = read_bus_data(bus_df)             # Generate the DataFrame with Buses data
-    DGEN = read_gen_data(gen_df)             # Generate the DataFrame with Generators data
-    DCIR = read_circuit_data(branch_df)      # Generate the DataFrame with Branches data
+    DBUS     = read_bus_data()          # Generate the DataFrame with Buses data
+    DGEN     = read_gen_data()          # Generate the DataFrame with Generators data
+    DCIR     = read_circuit_data()      # Generate the DataFrame with Branches data
 
     # For the code to work properly, the bus indices must be set in ascending order from 1 to nBUS
     bus_mapping, reverse_bus_mapping = Mapping_Buses_Labels(DBUS) # Map the buses labels from old to new nomeclature
@@ -198,4 +183,3 @@ function Reverse_Buses_Labels(DBUS::DataFrame, DGEN::DataFrame, DCIR::DataFrame,
 
     return DBUS, DGEN, DCIR
 end
-
