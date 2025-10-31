@@ -30,7 +30,7 @@ using JuMP, HiGHS#, Gurobi
 include("AF_CLEAN_TERMINAL.jl")         # Auxiliar function to clean the terminal
 include("AF_READ_DATA.jl")              # Auxiliar functions used to read input data
 include("AF_B_MATRIX.jl")               # Auxiliar function to create the Suscpetance Matrix
-include("BUILD_DCOPF_MODEL_REDUCED.jl") # Auxiliar function to create the DC OPF model for optimization (this creates a reduced version neglecting OFF components)
+include("BUILD_DCOPF_MODEL.jl")         # Auxiliar function to create the DC OPF model for optimization (this creates a reduced version neglecting OFF components)
 include("AF_SAVE_OUTPUT.jl")            # Auxiliar function to save the output results
 include("AF_MANAGEMENT.jl")             # Auxiliar function that calculates DC power flow and manage some data
 
@@ -177,4 +177,5 @@ else
     JuMP.@warn "Optmization process failed. No feasible solution found."
 end
 println("--------------------------------------------------------------------------------------------------------------------------------------")
+
 
